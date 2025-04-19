@@ -1,0 +1,1132 @@
+<?php 
+include 'includes/session.php';  
+include 'includes/header.php'; 
+?>
+
+	 <script src="js/jquery-1.11.0.js"></script>
+	 <script src="jquery-3.2.1.min.js" ></script>
+         <link href = "jquery-ui.css"    rel = "stylesheet">
+          <script src = "jquery-ui.js"></script>
+          <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+          <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.3/jquery.min.js"></script>
+          <script src="js/jquery.min.js"></script>
+<style type="text/css"> 
+@media print {
+thead { display: table-header-group; }
+tfoot { display: table-footer-group; }
+a[href]:after {
+      display: none;
+      visibility: hidden;
+   }
+}
+</style>
+<script type="text/javascript">
+function downloadCSV(csv, filename) {
+    var csvFile;
+    var downloadLink;
+ 
+    // CSV file
+    csvFile = new Blob([csv], {type: "text/csv"});
+
+    // Download link
+    downloadLink = document.createElement("a");
+
+    // File name
+    downloadLink.download = filename;
+
+    // Create a link to the file
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+
+    // Hide download link
+    downloadLink.style.display = "none";
+
+    // Add the link to DOM
+    document.body.appendChild(downloadLink);
+
+    // Click download link
+    downloadLink.click();
+}
+function exportTableToCSV(filename) {
+    var csv = [];
+    var rows = document.querySelectorAll("table tr");
+    
+    for (var i = 0; i < rows.length; i++) {
+        var row = [], cols = rows[i].querySelectorAll("td, th");
+        
+        for (var j = 0; j < cols.length; j++) 
+            row.push(cols[j].innerText);
+        
+        csv.push(row.join(":"));        
+    }
+
+    // Download CSV file
+    downloadCSV(csv.join("\n"), filename);
+}
+function printDiv(divName) {
+     var printContents = document.getElementById(divName).innerHTML;
+     var originalContents = document.body.innerHTML;
+
+     document.body.innerHTML = printContents;
+
+     window.print();
+
+     document.body.innerHTML = originalContents;
+}
+function check()
+{
+    var fromyear= document.frmpendreport.fromyear.value;
+     var toyear= document.frmpendreport.toyear.value;
+     if(fromyear>toyear && toyear!='')
+     {
+         alert("Select Proper Years");
+         document.frmpendreport.toyear.value="";
+         document.frmpendreport.fromyear.value="";
+     }
+}
+</script>
+
+  <?php
+function numberToCurrency($number)
+{
+    if(setlocale(LC_MONETARY, 'en_IN'))
+      return money_format('%.0n', $number);
+    else {
+      $explrestunits = "" ;
+      $number = explode('.', $number);
+      $num = $number[0];
+      if(strlen($num)>3){
+          $lastthree = substr($num, strlen($num)-3, strlen($num));
+          $restunits = substr($num, 0, strlen($num)-3); // extracts the last three digits
+          $restunits = (strlen($restunits)%2 == 1)?"0".$restunits:$restunits; // explodes the remaining digits in 2's formats, adds a zero in the beginning to maintain the 2's grouping.
+          $expunit = str_split($restunits, 2);
+          for($i=0; $i<sizeof($expunit); $i++){
+              // creates each of the 2's group and adds a comma to the end
+              if($i==0)
+              {
+                  $explrestunits .= (int)$expunit[$i].","; // if is first value , convert into integer
+              }else{
+                  $explrestunits .= $expunit[$i].",";
+              }
+          }
+          $thecash = $explrestunits.$lastthree;
+      } else {
+          $thecash = $num;
+      }
+      if(!empty($number[1])) {
+      	if(strlen($number[1]) == 1) {
+      		return '₹' .$thecash . '.' . $number[1] . '0';
+      	} else if(strlen($number[1]) == 2){
+      		return '₹' .$thecash . '.' . $number[1];
+      	} else {
+            return 'cannot handle decimal values more than two digits...';
+        }
+      } else {
+      	return '₹' .$thecash.'.00' ;
+      }
+    }
+} 
+?>
+ <?php
+ 
+  
+$username=$_SESSION['email'];
+include 'includes/session.php'; 
+   
+ $fromyear=$_POST["fromyear"];
+ $toyear=$_POST["toyear"];
+ $feecategory=$_POST["feecategory"];
+ $seattype=$_POST["seattype"];
+ $status=$_POST["status"];
+ $program=$_POST["program"];
+ 
+	$ft=array();
+	  $i=0;
+	   
+	  $where="";
+	  $t="";
+	  if(isset($_POST['feecategory'])){ 
+	 foreach($_POST['feecategory'] as $no){
+		$ft[$i]= $no;
+		$t=$t." ".$ft[$i];
+		if($i>0) $where=$where. " or ";
+		 
+		$where = $where. " feecategory = '".$ft[$i]."' " ;
+	
+		$i++;
+		 
+	} 
+	  }
+	else
+	{
+	    $query = $conn->query("SELECT distinct(feecategory) FROM tblfeetypes  where feecategory!='GOVT' order by feecategory desc");
+	     while($row = $query->fetch_assoc()){
+                                   	$ft[$i]= $row['feecategory'];
+		$t=$t.",".$ft[$i];
+		if($i>0) $where=$where. " or ";
+		 
+		$where = $where. " feecategory = '".$ft[$i]."' " ;
+	
+		$i++;          
+                                        }
+	    
+	} 
+ 
+ 
+  $fb=$feecategory;
+ $rcptdate = date("d-m-Y", strtotime(date("Y-m-d")));
+$sdate=date("Y-m-d");
+if ($program!="")
+	 $sqlp="select distinct(program) from tblbranch  where program='$program' ";
+ else
+	 $sqlp="select distinct(program) from tblbranch  ";
+ 
+  $i=1;
+ $queryp = $conn->query($sqlp);
+  
+ ?>
+ <style>
+	.td_data{
+		text-align:left;
+		font-size:16px;
+		color:black;
+	}
+	.td_data1{
+		text-align:right;
+		font-size:16px;
+		font-weight:bold;
+	}
+	</style>
+ 
+<div class="wrapper">
+ <?php include '../includes/navbar2.php'; ?>
+  <?php // include '../includes/menubar.php'; ?>
+  <div class="panel panel-primary">
+   <div class="panel-heading">
+						 Fee Status  & Admitted Batch wise Pending Report
+						  <a href="/VSMERP/fees/feemenu.php" align="right"  class="btn btn-danger btn-sm pull-right" title="Close this Tab.."> Close </a> 
+					      <button   class="btn btn-success btn-sm pull-right" onclick="exportTableToCSV('dc.csv')"> CSV</button>
+						 <input type="button" class="btn btn-success btn-sm pull-right" onclick="printDiv('printableArea')" value="Print" /> 
+						 <button class="btn btn-primary btn-sm pull-right" onclick="exportTableToCSV('studentfeereport.csv')" title="For Rupees Symbol ₹,MS-Excel: Click Data menu-->From Text -->Open File--> Next--> Other -->type : symbol & Unicode(UTF-8) OR (in File Origin Dropdown)"  data-toggle="tooltip" >CSV( Colon : delimited)</button> 
+						 
+						</div><br><br><div class="panel panel-default">
+   <div class="panel-heading">
+  <?php
+                             
+   $query = $conn->query("SELECT distinct(feecategory) FROM tblfeetypes  where feecategory!='GOVT' order by feecategory  desc");
+       $rowCount = $query->num_rows; 
+	 	$query2 = $conn->query("SELECT distinct(program) FROM tblProgram ");
+         $rowCount2 = $query->num_rows;
+                            ?>
+    <form name=frmpendreport  class="form-inline" role="form"  method= "post" action="srcfeependingbatchyear.php" >
+ 	<select name="program" id="program"  STYLE="font-family: Verdana; font-weight: bold; font-size: 14px;  " class="form-control"  required>
+        <option value="">Select Program </option>
+									 
+        <?php
+           if($rowCount2 > 0){
+                              while($row = $query2->fetch_assoc()){
+                                 
+                                   
+                       ?>
+                              <option  <?php if ($program== $row['program'] ) echo 'selected' ; ?>  value='<?php echo $row['program'];?>'><?php echo $row['program'];?></option>
+                          
+						  <?php
+                          }
+                                      }else{
+                                        echo '<option value="">Program not available</option>';
+                                    }
+                                    ?>
+                                </select> 
+                                
+                                 <select name="fromyear" id="fromyear"  STYLE="font-family: Verdana; font-weight: bold; font-size: 14px;  " class="form-control"  required   onchange="check();">
+        <option value="">Select From Year</option>
+									 
+        <?php
+        $query2 = $conn->query("SELECT distinct(substring(feebatch,1,4)) as fromyear FROM tblfeebatch order by feebatch desc");
+         $rowCount2 = $query->num_rows;
+           if($rowCount2 > 0){
+                              while($row = $query2->fetch_assoc()){
+                                 
+                                   
+                       ?>
+                              <option  <?php if ($fromyear== $row['fromyear'] ) echo 'selected' ; ?>  value='<?php echo $row['fromyear'];?>'><?php echo $row['fromyear'];?></option>
+                          
+						  <?php
+                          }
+                                      }else{
+                                        echo '<option value="">From Year not available</option>';
+                                    }
+                                    ?>
+                                </select>  
+                                 
+                          <select name="toyear" id="toyear"  STYLE="font-family: Verdana; font-weight: bold; font-size: 14px;  " class="form-control"  required   onchange="check();">
+        <option value="">Select To Year</option>
+									 
+        <?php
+        $query2 = $conn->query("SELECT distinct(substring(feebatch,1,4)) as toyear FROM tblfeebatch  order by feebatch desc");
+         $rowCount2 = $query->num_rows;
+           if($rowCount2 > 0){
+                              while($row = $query2->fetch_assoc()){
+                                 
+                                   
+                       ?>
+                              <option  <?php if ($toyear== $row['toyear'] ) echo 'selected' ; ?>  value='<?php echo $row['toyear'];?>'><?php echo $row['toyear'];?></option>
+                          
+						  <?php
+                          }
+                                      }else{
+                                        echo '<option value="">To Year not available</option>';
+                                    }
+                                    ?>
+                                </select>       
+                                  
+                             
+                                <label for = "enddate" STYLE="color: red; font-family: Verdana; font-weight: bold; font-size: 14px;  " >Fee Category</label>
+								
+                               	<select name="feecategory[]" id="feecategory"   multiple  STYLE="font-family: Verdana; font-weight: bold; font-size: 18px;  "  required>
+                                    <option value="">Select Fee Category </option>
+									 
+                                    <?php
+                                    if($rowCount > 0){
+                                        while($row = $query->fetch_assoc()){
+                                            echo '<option value="'.$row['feecategory'].'">'.$row['feecategory'].'</option>';
+                                        }
+                                    }else{
+                                        echo '<option value="">Fee category not available</option>';
+                                    }
+                                    ?>
+                                </select> 
+							<!--	 <select name="seattype" id="seattype" class="form-control" >      
+                           
+                           <option value="">Select Seat Type</option>
+                           <option value="C">Convener</option>
+						   <option value="M">Mngt/Spot</option>
+                            
+                           </select>-->
+						    <select name="status" id="status" class="form-control" >      
+                            
+                           <option value="">Select Status(Optional)</option>
+                           <option value="D">Detain/TC/Dropout/EFNP</option>
+						   <option value="E">Except Detain/TC/Dropout/EFNP</option>
+                            
+                           </select>
+                             <input type=submit class="btn btn-success btn-sm" value="Admitted Batch Wise Fee report"  name="feestatus"> 
+                            </form>
+                        </form>
+                    
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css" rel="stylesheet" />
+ <script>
+ $('#feecategory').chosen();
+ </script> 	
+   </div>
+   </div>
+<?php if(isset($_POST['feestatus']))
+{ ?>
+     <div class="panel-body">
+     <div class="table-sorting table-responsive" id="printableArea">
+    <table border = "1px" width="595px"  align="center"   border=1>
+		
+		
+		<tr>
+		<?php if($seattype=="") $seattyped="";
+		if($seattype=="C") $seattyped="Convener";
+		if($seattype=="M") $seattyped="Management";
+		if($status=="") $statusd="";
+		if($status=="E") $statusd="Except EFNP/DROPOUT/TCOUT/DETAIN";
+		if($status=="D") $statusd="EFNP/DROPOUT/TCOUT/DETAIN";
+		?>
+		<td  align="center" colspan="13" style="font-size:17px;
+		color:blue;"><?php echo "Admitted Batch wise ". $program ." ". $statusd." ".$seattyped. " ".$t. "  Fee Complete  Report"; echo ' as on '.$rcptdate; ?>		 </td>
+		</tr>
+      
+        
+					 
+						<tr class="td_data">
+						<th>Sl.No.</th>
+					 
+						<th>AdmittedBatch</th>
+					<?php if($feecategory=="TUITION"){?>
+						<th>Strength</th>
+						<th>Convener</th>
+						<th>Mngt.</th>
+						<?php }?>
+						<th>Study_Year </th>
+						<th>Fee_Category</th>
+						<th>Actual_Fee_Amount</th>
+						<th>MSN_Scholar</th>
+						<th>Final_Fee_Amount</th>
+                        <th>Total_Collected_Amt</th>
+                        <th>Fee_Collection_Mode</th>
+						 <th>To_Day_Fee</th>
+						<th style="color:red;">Fee_Due_Amt</th>
+						<th>Collected % </th>
+						<th>Unrecovery </th> 
+					</tr>
+ <?php
+
+$ttamt=0;  
+ $tcamt=0; 
+ $i=1;
+  $totalamt=0;
+ $totaldis=0;
+ $bamt=0;
+$sno=1;
+while($rsp = $queryp->fetch_assoc())	
+{	
+$btcamt= 0;
+$bttamt=  0;
+$btotalamt=0;
+$btotaldis =0;
+$bbamt=0;
+if($rsp['program']=="UGENG")
+	$du=4;
+else if($rsp['program']=="UGDEG" or $rsp['program']=="PUG")
+	$du=3;
+else if($rsp['program']=="INTER" or $rsp['program']=="PGDEG" or $rsp['program']=="PGENG")
+	$du=2;
+$i= $fromyear;
+ 
+while($i<= $toyear)
+{
+$ybtcamt= 0;
+$ybttamt=  0;
+$ybtotalamt=0;
+$ybtotaldis =0;
+$ybbamt=0;
+	$dif=$i- $fromyear;
+	$j=$i;
+	$k=$i;
+	$l=$i;
+	$y=1; 
+	$batch=	$l ."-". ($l + $du);
+	$batchle=	($l+1) ."-". ($l + $du);
+	$acp=$i;
+	$yy=1;
+	$yy2=1;
+	while(  $y<=$du)
+	{
+	
+	$y1btcamt= 0;
+    $y1bttamt=  0;
+    $y1btotalamt=0;
+    $y1btotaldis =0;
+    $y1bbamt=0; 
+	
+	$l--;
+	$acyear=$acp."-".($acp+1);
+	$acp++;
+	  $p=0;
+	 $sqlbt="select distinct(branch) from tblbatchstrength  where program='".$rsp['program']."'  and (batch='".$batch."' or batch='".$batchle."' ) and branch !='HBS' ";
+	  
+      $querybat = $conn->query($sqlbt);  
+	 $where="";
+	if(isset($_POST['feecategory']) or $i!=0  ) {
+	 foreach($ft as $no)
+	 {
+	     
+	     $where="";
+	     $where1="";
+	     $p=0;
+	// $ft[$p]= $no;	
+	 $sqlft="select distinct(feebatch) from tblfeebatch  where feetype  in (select feetype from tblfeetypes where feecategory='$no') 	 and feebatch like '$acyear%' and (program = '".$program."' or program='' or program is null)";
+	  
+     $queryft = $conn->query($sqlft);
+     while($rsft = $queryft->fetch_assoc())
+		{
+		$fb=$rsft['feebatch'] ;
+		if ($where ==""){
+		 $where=  " ( ";
+		 $where1=  " ( "; 
+		}
+		if($p>0) {
+		    $where=$where. " or ";
+		     $where1=$where1. " or ";
+		}
+		 
+		$where = $where. " feebatch = '$fb' " ;
+		$where1 = $where1. " tbldiscount.feebatch = '$fb' " ;
+		$p++;
+		}
+	 
+
+ 	if ($where !="")
+ 	{
+		 $where= $where. " ) and ";
+		  $where1= $where1. " ) and ";
+ 	}		 
+    if($no=="TUITION"){ 
+   if($y==1)
+   
+    $sqlst="select count(rollno) as stn from  tblstudents  where     program ='".$rsp['program']."' and (batch='".$batch."' )     ";
+    else
+    $sqlst="select count(rollno) as stn from  tblstudents  where     program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')     ";
+    
+    $queryst = $conn->query($sqlst);
+	$rsst = $queryst->fetch_assoc();		 
+	if($y==1)	 
+	$sqlc="select count(rollno) as c from  tblstudents  where     program ='".$rsp['program']."' and (batch='".$batch."'  )  and seattype='C'   ";
+	
+	else
+      $sqlc="select count(rollno) as c   from  tblstudents  where     program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."' )  and seattype='C'    ";	
+    $queryc = $conn->query($sqlc);
+	$rsc= $queryc->fetch_assoc();	
+	
+	
+	if($y==1)	 	 
+	$sqlm="select count(rollno) as m from  tblstudents  where     program ='".$rsp['program']."' and (batch='".$batch."'  )  and (seattype='M' or   seattype='S')   ";
+	else
+	$sqlm="select count(rollno) as m from  tblstudents  where     program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."' )  and (seattype='M' or   seattype='S')   ";
+	
+    $querym = $conn->query($sqlm);
+	$rsm= $querym->fetch_assoc();
+    }	
+   if($where !=""){
+    if ($seattype=="")	
+	{
+	if ($status=="") {
+	$sqlfbsum="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  group by program order by feebatch ";
+	
+   
+	$queryfbsum = $conn->query($sqlfbsum);
+	$rsfbsum = $queryfbsum->fetch_assoc();
+ 
+   if($no=="TUITION")	
+   {
+      $sqlfbsumc="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and seattype='C'  group by program order by feebatch ";
+     $queryfbsumc = $conn->query($sqlfbsumc);
+	$rsfbsumc = $queryfbsumc->fetch_assoc(); 
+	 
+	 $sqlfbsumm="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and seattype='M'  group by program order by feebatch ";
+	$queryfbsumm = $conn->query($sqlfbsumm);
+	$rsfbsumm = $queryfbsumm->fetch_assoc();
+       
+    }
+ 
+ 
+	$sqlfbdis="select sum(discount)  as damt from tbldiscount ,tblstudents   , tblfeemaster where    $where1    (batch='".$batch."' or batch='".$batchle."')   and program ='".$rsp['program']."' and  tblstudents.rollno=tbldiscount.rollno   and  tbldiscount.rollno =tblfeemaster.rollno and  tblfeemaster.rollno= tblstudents.rollno and tblfeemaster.feebatch= tbldiscount.feebatch     ";
+  
+	$queryfbdis = $conn->query($sqlfbdis);
+	$rsfbdis = $queryfbdis->fetch_assoc();
+	
+	$sqlfbcol="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno  and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate'  group by program  ";  
+	$queryfbcol = $conn->query($sqlfbcol);
+ 
+	$rsfbcol = $queryfbcol->fetch_assoc();
+	 
+	$sqlfbtcol="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' group by program   ";
+	$queryfbtcol = $conn->query($sqlfbtcol);
+	$rsfbtcol = $queryfbtcol->fetch_assoc();
+	
+	
+	if($no=="TUITION"){
+	$sqlfbcolc="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate' and seattype='C' group by program order by feebatch ";  
+	$queryfbcolc = $conn->query($sqlfbcolc);
+	$rsfbcolc = $queryfbcolc->fetch_assoc();
+	 
+	$sqlfbtcolct="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' and seattype='C' group by program  order by feebatch ";
+	$queryfbtcolct = $conn->query($sqlfbtcolct);
+	$rsfbtcolct = $queryfbtcolct->fetch_assoc();
+	
+	$sqlfbcolm="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate' and seattype='M' group by program order by feebatch ";  
+	$queryfbcolm = $conn->query($sqlfbcolm);
+	$rsfbcolm = $queryfbcolm->fetch_assoc();
+	 
+	$sqlfbtcolmt="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' and seattype='M' group by program  order by feebatch ";
+	$queryfbtcolmt = $conn->query($sqlfbtcolmt);
+	$rsfbtcolmt = $queryfbtcolmt->fetch_assoc();
+	
+	}
+	
+	$sqlfbcolcash="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate' and mode in('CASH','Cash','cash') group by program order by feebatch ";  
+
+	$queryfbcolcash = $conn->query($sqlfbcolcash);
+	$rsfbcolcash = $queryfbcolcash->fetch_assoc();
+  	 
+	$sqlfbtcolcash="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' and mode in('CASH','Cash','cash') group by program  order by feebatch ";
+	$queryfbtcolcash = $conn->query($sqlfbtcolcash);
+	$rsfbtcolcash = $queryfbtcolcash->fetch_assoc();
+	
+   $sqlfbcolic="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate' and mode in('ICOLLECT','ICollect','icollect') group by program order by feebatch ";  
+	$queryfbcolic = $conn->query($sqlfbcolic);
+	$rsfbcolic = $queryfbcolic->fetch_assoc();
+ 
+	$sqlfbtcolic="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' and mode in('ICOLLECT','ICollect','icollect') group by program  order by feebatch ";
+	$queryfbtcolic = $conn->query($sqlfbtcolic);
+	$rsfbtcolic = $queryfbtcolic->fetch_assoc();
+	
+	
+	 $sqlfbcoldd="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate' and mode in('DD','dd') group by program order by feebatch ";  
+	$queryfbcoldd = $conn->query($sqlfbcoldd);
+	$rsfbcoldd = $queryfbcoldd->fetch_assoc();
+ 
+	$sqlfbtcoldd="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' and mode in('DD','dd') group by program  order by feebatch ";
+	$queryfbtcoldd = $conn->query($sqlfbtcoldd);
+	$rsfbtcoldd = $queryfbtcoldd->fetch_assoc();
+  
+	 $sqlfbcolcq="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate' and mode in('Cheque','cheque' ,'CHEQUE') group by program order by feebatch ";  
+	$queryfbcolcq = $conn->query($sqlfbcolcq);
+	$rsfbcolcq = $queryfbcolcq->fetch_assoc();
+
+	$sqlfbtcolcq="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' and mode in('Cheque','cheque' ,'CHEQUE') group by program  order by feebatch ";
+	$queryfbtcolcq = $conn->query($sqlfbtcolcq);
+	$rsfbtcolcq = $queryfbtcolcq->fetch_assoc();
+	
+	}
+	else if ($status=="D") {
+	$sqlfbsum="select sum(amount)  as tamt from tblfeemaster,tblstudents  where    $where     tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) group by program order by feebatch ";
+	$queryfbsum = $conn->query($sqlfbsum);
+	$rsfbsum = $queryfbsum->fetch_assoc();
+  if($no=="TUITION")	
+   {
+      $sqlfbsumc="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and seattype='C'  group by program order by feebatch ";
+     $queryfbsumc = $conn->query($sqlfbsumc);
+	$rsfbsumc = $queryfbsumc->fetch_assoc(); 
+	 
+	 $sqlfbsumm="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and seattype='M'  group by program order by feebatch ";
+	$queryfbsumm = $conn->query($sqlfbsumm);
+	$rsfbsumm = $queryfbsumm->fetch_assoc();
+       
+    }
+	$sqlfbdis="select sum(discount)  as damt from tbldiscount ,tblstudents  where    $where   tblstudents.rollno=tbldiscount.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) group by program order by feebatch ";
+	$queryfbdis = $conn->query($sqlfbdis);
+	$rsfbdis = $queryfbdis->fetch_assoc();
+	
+	$sqlfbcol="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate < '$sdate'  group by program order by feebatch ";  
+	$queryfbcol = $conn->query($sqlfbcol);
+	$rsfbcol = $queryfbcol->fetch_assoc();
+	 
+	$sqlfbtcol="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where   $where  tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' group by program  order by feebatch ";
+	$queryfbtcol = $conn->query($sqlfbtcol);
+	$rsfbtcol = $queryfbtcol->fetch_assoc();
+	
+	if($no=="TUITION"){
+	$sqlfbcolc="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )   and receiptdate < '$sdate' and seattype='C' group by program order by feebatch ";  
+	$queryfbcolc = $conn->query($sqlfbcolc);
+	$rsfbcolc = $queryfbcolc->fetch_assoc();
+	 
+	$sqlfbtcolct="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )  and receiptdate = '$sdate' and seattype='C' group by program  order by feebatch ";
+	$queryfbtcolct = $conn->query($sqlfbtcolct);
+	$rsfbtcolct = $queryfbtcolct->fetch_assoc();
+	
+	$sqlfbcolm="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )   and receiptdate < '$sdate' and seattype='M' group by program order by feebatch ";  
+	$queryfbcolm = $conn->query($sqlfbcolm);
+	$rsfbcolm = $queryfbcolm->fetch_assoc();
+	 
+	$sqlfbtcolmt="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )  and receiptdate = '$sdate' and seattype='M' group by program  order by feebatch ";
+	$queryfbtcolmt = $conn->query($sqlfbtcolmt);
+	$rsfbtcolmt = $queryfbtcolmt->fetch_assoc();
+	
+	}	
+	
+	
+	$sqlfbcolcash="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate < '$sdate' and mode in('CASH','Cash','cash') group by program order by feebatch ";  
+
+	$queryfbcolcash = $conn->query($sqlfbcolcash);
+	$rsfbcolcash = $queryfbcolcash->fetch_assoc();
+  	 
+	$sqlfbtcolcash="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' and mode in('CASH','Cash','cash') group by program  order by feebatch ";
+	$queryfbtcolcash = $conn->query($sqlfbtcolcash);
+	$rsfbtcolcash = $queryfbtcolcash->fetch_assoc();
+	
+   $sqlfbcolic="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )  and receiptdate < '$sdate' and mode in('ICOLLECT','ICollect','icollect') group by program order by feebatch ";  
+	$queryfbcolic = $conn->query($sqlfbcolic);
+	$rsfbcolic = $queryfbcolic->fetch_assoc();
+ 
+	$sqlfbtcolic="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' and mode in('ICOLLECT','ICollect','icollect') group by program  order by feebatch ";
+	$queryfbtcolic = $conn->query($sqlfbtcolic);
+	$rsfbtcolic = $queryfbtcolic->fetch_assoc();
+	
+	
+	 $sqlfbcoldd="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )  and receiptdate < '$sdate' and mode in('DD','dd') group by program order by feebatch ";  
+	$queryfbcoldd = $conn->query($sqlfbcoldd);
+	$rsfbcoldd = $queryfbcoldd->fetch_assoc();
+ 
+	$sqlfbtcoldd="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' and mode in('DD','dd') group by program  order by feebatch ";
+	$queryfbtcoldd = $conn->query($sqlfbtcoldd);
+	$rsfbtcoldd = $queryfbtcoldd->fetch_assoc();
+  
+	 $sqlfbcolcq="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' )  and receiptdate < '$sdate' and mode in('Cheque','cheque' ,'CHEQUE') group by program order by feebatch ";  
+	$queryfbcolcq = $conn->query($sqlfbcolcq);
+	$rsfbcolcq = $queryfbcolcq->fetch_assoc();
+
+	$sqlfbtcolcq="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' and mode in('Cheque','cheque' ,'CHEQUE') group by program  order by feebatch ";
+	$queryfbtcolcq = $conn->query($sqlfbtcolcq);
+	$rsfbtcolcq = $queryfbtcolcq->fetch_assoc();
+	}
+	else if ($status=="E") {
+	$sqlfbsum="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where   tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  ) group by program order by feebatch ";
+	$queryfbsum = $conn->query($sqlfbsum);
+	$rsfbsum = $queryfbsum->fetch_assoc();
+  if($no=="TUITION")	
+   {
+      $sqlfbsumc="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and (tblstudents.status='' or tblstudents.status is null  ) and seattype='C'  group by program order by feebatch ";
+     $queryfbsumc = $conn->query($sqlfbsumc);
+	$rsfbsumc = $queryfbsumc->fetch_assoc(); 
+	 
+	 $sqlfbsumm="select sum(amount)  as tamt from tblfeemaster,tblstudents  where   $where      tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and (tblstudents.status='' or tblstudents.status is null  ) and seattype='M'  group by program order by feebatch ";
+	$queryfbsumm = $conn->query($sqlfbsumm);
+	$rsfbsumm = $queryfbsumm->fetch_assoc();
+       
+    }
+	$sqlfbdis="select sum(discount)  as damt from tbldiscount ,tblstudents  where    $where   tblstudents.rollno=tbldiscount.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  group by program order by feebatch ";
+	$queryfbdis = $conn->query($sqlfbdis);
+	$rsfbdis = $queryfbdis->fetch_assoc();
+	
+	$sqlfbcol="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where   $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate < '$sdate'  group by program order by feebatch ";  
+	$queryfbcol = $conn->query($sqlfbcol);
+	$rsfbcol = $queryfbcol->fetch_assoc();
+	 
+	$sqlfbtcol="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where   $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' group by program  order by feebatch ";
+	$queryfbtcol = $conn->query($sqlfbtcol);
+	$rsfbtcol = $queryfbtcol->fetch_assoc();
+	
+	
+		if($no=="TUITION"){
+	$sqlfbcolc="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and (tblstudents.status='' or tblstudents.status is null  )   and receiptdate < '$sdate' and seattype='C' group by program order by feebatch ";  
+	$queryfbcolc = $conn->query($sqlfbcolc);
+	$rsfbcolc = $queryfbcolc->fetch_assoc();
+	 
+	$sqlfbtcolct="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' and seattype='C' group by program  order by feebatch ";
+	$queryfbtcolct = $conn->query($sqlfbtcolct);
+	$rsfbtcolct = $queryfbtcolct->fetch_assoc();
+	
+	$sqlfbcolm="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and (tblstudents.status='' or tblstudents.status is null  )   and receiptdate < '$sdate' and seattype='M' group by program order by feebatch ";  
+	$queryfbcolm = $conn->query($sqlfbcolm);
+	$rsfbcolm = $queryfbcolm->fetch_assoc();
+	 
+	$sqlfbtcolmt="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' and seattype='M' group by program  order by feebatch ";
+	$queryfbtcolmt = $conn->query($sqlfbtcolmt);
+	$rsfbtcolmt = $queryfbtcolmt->fetch_assoc();
+	
+	}		
+	
+	$sqlfbcolcash="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )   and receiptdate < '$sdate' and mode in('CASH','Cash','cash') group by program order by feebatch ";  
+
+	$queryfbcolcash = $conn->query($sqlfbcolcash);
+	$rsfbcolcash = $queryfbcolcash->fetch_assoc();
+  	 
+	$sqlfbtcolcash="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' and mode in('CASH','Cash','cash') group by program  order by feebatch ";
+	$queryfbtcolcash = $conn->query($sqlfbtcolcash);
+	$rsfbtcolcash = $queryfbtcolcash->fetch_assoc();
+	
+   $sqlfbcolic="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )   and receiptdate < '$sdate' and mode in('ICOLLECT','ICollect','icollect') group by program order by feebatch ";  
+	$queryfbcolic = $conn->query($sqlfbcolic);
+	$rsfbcolic = $queryfbcolic->fetch_assoc();
+ 
+	$sqlfbtcolic="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' and mode in('ICOLLECT','ICollect','icollect') group by program  order by feebatch ";
+	$queryfbtcolic = $conn->query($sqlfbtcolic);
+	$rsfbtcolic = $queryfbtcolic->fetch_assoc();
+	
+	
+	 $sqlfbcoldd="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )   and receiptdate < '$sdate' and mode in('DD','dd') group by program order by feebatch ";  
+	$queryfbcoldd = $conn->query($sqlfbcoldd);
+	$rsfbcoldd = $queryfbcoldd->fetch_assoc();
+ 
+	$sqlfbtcoldd="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' and mode in('DD','dd') group by program  order by feebatch ";
+	$queryfbtcoldd = $conn->query($sqlfbtcoldd);
+	$rsfbtcoldd = $queryfbtcoldd->fetch_assoc();
+  
+	 $sqlfbcolcq="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )   and receiptdate < '$sdate' and mode in('Cheque','cheque' ,'CHEQUE') group by program order by feebatch ";  
+	$queryfbcolcq = $conn->query($sqlfbcolcq);
+	$rsfbcolcq = $queryfbcolcq->fetch_assoc();
+
+	$sqlfbtcolcq="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where    $where    tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' and mode in('Cheque','cheque' ,'CHEQUE') group by program  order by feebatch ";
+	$queryfbtcolcq = $conn->query($sqlfbtcolcq);
+	$rsfbtcolcq = $queryfbtcolcq->fetch_assoc();
+	}
+ 
+	}
+	else
+	{
+	if ($status=="") {
+	$sqlfbsum="select sum(amount)  as tamt from tblfeemaster,tblstudents  where seattype='".$seattype."' and   $where  tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  group by program order by feebatch ";
+ 
+	$queryfbsum = $conn->query($sqlfbsum);
+	$rsfbsum = $queryfbsum->fetch_assoc();
+ 
+	$sqlfbdis="select sum(discount)  as damt from tbldiscount ,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tbldiscount.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') group by program order by feebatch ";
+	$queryfbdis = $conn->query($sqlfbdis);
+	$rsfbdis = $queryfbdis->fetch_assoc();
+	
+	$sqlfbcol="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where seattype='".$seattype."' and  $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."')  and receiptdate < '$sdate'  group by program order by feebatch ";  
+	$queryfbcol = $conn->query($sqlfbcol);
+	$rsfbcol = $queryfbcol->fetch_assoc();
+	 
+	$sqlfbtcol="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and receiptdate = '$sdate' group by program  order by feebatch ";
+	$queryfbtcol = $conn->query($sqlfbtcol);
+	$rsfbtcol = $queryfbtcol->fetch_assoc();
+	}
+	else if ($status=="D") {
+	$sqlfbsum="select sum(amount)  as tamt from tblfeemaster,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) group by program order by feebatch ";
+	$queryfbsum = $conn->query($sqlfbsum);
+	$rsfbsum = $queryfbsum->fetch_assoc();
+ 
+	$sqlfbdis="select sum(discount)  as damt from tbldiscount ,tblstudents  where seattype='".$seattype."' and   $where  tblstudents.rollno=tbldiscount.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) group by program order by feebatch ";
+	$queryfbdis = $conn->query($sqlfbdis);
+	$rsfbdis = $queryfbdis->fetch_assoc();
+	
+	$sqlfbcol="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate < '$sdate'  group by program order by feebatch ";  
+	$queryfbcol = $conn->query($sqlfbcol);
+	$rsfbcol = $queryfbcol->fetch_assoc();
+	 
+	$sqlfbtcol="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' group by program  order by feebatch ";
+	$queryfbtcol = $conn->query($sqlfbtcol);
+	$rsfbtcol = $queryfbtcol->fetch_assoc();
+	}
+	else if ($status=="E") {
+	$sqlfbsum="select sum(amount)  as tamt from tblfeemaster,tblstudents  where seattype='".$seattype."' and   $where  tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  ) group by program order by feebatch ";
+	$queryfbsum = $conn->query($sqlfbsum);
+	$rsfbsum = $queryfbsum->fetch_assoc();
+  
+	$sqlfbdis="select sum(discount)  as damt from tbldiscount ,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tbldiscount.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  group by program order by feebatch ";
+	$queryfbdis = $conn->query($sqlfbdis);
+	$rsfbdis = $queryfbdis->fetch_assoc();
+	
+	$sqlfbcol="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where seattype='".$seattype."' and   $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate < '$sdate'  group by program order by feebatch ";  
+	$queryfbcol = $conn->query($sqlfbcol);
+	$rsfbcol = $queryfbcol->fetch_assoc();
+	 
+	$sqlfbtcol="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where seattype='".$seattype."' and   $where  tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='' or tblstudents.status is null  )  and receiptdate = '$sdate' group by program  order by feebatch ";
+	$queryfbtcol = $conn->query($sqlfbtcol);
+	$rsfbtcol = $queryfbtcol->fetch_assoc();
+	}
+	}
+	//Unrecovery
+	$sqlfbsumu="select sum(amount)  as tamt from tblfeemaster,tblstudents  where    $where   tblstudents.rollno=tblfeemaster.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) group by program order by feebatch ";
+	$queryfbsumu = $conn->query($sqlfbsumu);
+	$rsfbsumu = $queryfbsumu->fetch_assoc();
+ 
+	$sqlfbdisu="select sum(discount)  as damt from tbldiscount ,tblstudents  where    $where  tblstudents.rollno=tbldiscount.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) group by program order by feebatch ";
+	$queryfbdisu = $conn->query($sqlfbdisu);
+	$rsfbdisu = $queryfbdisu->fetch_assoc();
+	
+	$sqlfbcolu="select sum(amount)  as camt from tblfeereceipt ,tblstudents  where     $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate < '$sdate'  group by program order by feebatch ";  
+	$queryfbcolu = $conn->query($sqlfbcolu);
+	$rsfbcolu = $queryfbcolu->fetch_assoc();
+	 
+	$sqlfbtcolu="select sum(amount)  as tcamt from tblfeereceipt ,tblstudents  where     $where   tblstudents.rollno=tblfeereceipt.rollno and program ='".$rsp['program']."' and (batch='".$batch."' or batch='".$batchle."') and (tblstudents.status='Detained' or tblstudents.status='DROPOUT' or tblstudents.status='EFNP' or tblstudents.status='TCOUT' ) and receiptdate = '$sdate' group by program  order by feebatch ";
+	$queryfbtcolu = $conn->query($sqlfbtcolu);
+	$rsfbtcolu = $queryfbtcolu->fetch_assoc();
+	
+	$uramt=$rsfbsumu['tamt']-$rsfbdisu['damt']-$rsfbcolu['camt']-$rsfbtcolu['tcamt'];
+	
+     $due=($rsfbsum['tamt']-$rsfbdis['damt']-$rsfbcol['camt'] -$rsfbtcol['tcamt']);
+     
+     
+     	
+//	if( $due!=0)
+	// if( $rsfbsum['tamt']!=0)
+	{ 
+	?>
+      	<?php if($yy2==1){ 
+					$yy2=0;
+					?>
+	     <tr class="td_data">
+	         <td colspan= 11>
+	           <a style="color:blue;" href="../mis/h_m_srcbatchfeebatch.php?program=<?php echo $rsp['program'];?>&batch=<?php echo  $batch;?>&batchle=<?php echo  $batchle;?>&feecategory=<?php echo  $t;?>" target="_blank"  >
+						<?php echo " Fee Batches ".$batch. "| "  ;  ?></a>   
+					<?php
+					echo "<span style='color:red;'> Fee Terms </span>";	
+					$cn=1; 
+                    while($rsbt = $querybat->fetch_assoc())	
+						{?>
+						<a style="color:blue;" href="srcrptbatchall.php?program=<?php echo $rsp['program'];?>&batch=<?php echo  $batch;?>&batchle=<?php echo  $batchle;?>&branch=<?php echo  $rsbt['branch'];?>" target="_blank"  >
+						<?php echo " (".$cn++.")". $rsbt['branch']." | "; ?></a> 
+					<?php	
+						}
+						
+					?>			
+	         </td>
+	     </tr>
+	     <?php }?>
+					<tr class="td_data">
+						<td><?php echo $sno++; ?></td>
+					<?php if($yy==1){ 
+					$yy=0;
+					?>
+					 
+					 
+						<td  ><a style="color:red;" href="../mis/h_m_srcbatchfeebatch.php?program=<?php echo $rsp['program'];?>&batch=<?php echo  $batch;?>&batchle=<?php echo  $batchle;?>&feecategory=<?php echo  $t;?>" target="_blank"  >
+						<?php echo $batch ;  ?></a> 
+						
+					
+						</td>
+					<?php }	 
+						else
+						{ ?>
+							<td>. </td>
+				      
+						
+						
+						<?php } ?>
+				 		
+						<td><?php echo $y. " Year"; ?>
+							<?php if($no=="TUITION"){ 
+					    	echo "<br>";
+						  echo "C-".$rsc['c'];   echo "<br>";
+						  echo "M-".$rsm['m']; 	
+						  echo "<br>";  
+						  echo "Tot-".$rsst['stn'];
+						}
+						  ?> 
+						 </td>
+						<td> 
+						
+						<a style="color:red;" href="../mis/h_m_srcacfeecatwise.php?program=<?php echo $rsp['program'];?>&acyear=<?php echo  $acyear;?>&feecategory=<?php echo  $no;?>&batch=<?php echo  $batch;?>&batchle=<?php echo  $batchle;?>&status=<?php echo  $status;?>" target="_blank"  >
+						<?php echo $no; ?></a>
+						</td>
+							<td class="td_data1">
+						    <?php 
+						    if($no=="TUITION"){
+						    echo "Con-".numberToCurrency($rsfbsumc['tamt']); 
+						    
+						      echo "<br>Mgt-".numberToCurrency($rsfbsumm['tamt']); echo "<br>";
+						    }
+						    ?>
+						    
+						   
+						    <?php echo "Tot-". numberToCurrency($rsfbsum['tamt']); ?>
+						
+						
+						</td>
+						<td class="td_data1"><?php echo numberToCurrency($rsfbdis['damt']); 
+						
+						?></td>
+						<td class="td_data1"><?php echo numberToCurrency($rsfbsum['tamt']-$rsfbdis['damt']); ?></td>
+                        	<td class="td_data1"> 
+						
+						<?php 
+						   if($no=="TUITION"){
+                        if($rsfbcolc['camt']!=0)
+                        echo "Con-". numberToCurrency($rsfbcolc['camt']) ; 
+                        if($rsfbcolm['camt']!=0)
+                        echo "<br>Mgt-".numberToCurrency($rsfbcolm['camt']);
+                         echo "<br>Tot-". numberToCurrency($rsfbcol['camt']); 
+						   }
+						   else
+					 echo "Misc.-".numberToCurrency($rsfbcol['camt']);
+                        ?>
+						
+						
+						</td>
+                        <td class="td_data1">
+                        <?php 
+                        if($rsfbcolcash['camt']!=0)
+                        echo "CA-". numberToCurrency($rsfbcolcash['camt']) ; ?>
+                         
+                        <?php 
+                        if($rsfbcolic['camt']!=0)
+                        echo "<br>IC-".numberToCurrency($rsfbcolic['camt']); ?>
+                       
+                       <?php 
+                        if($rsfbcoldd['camt']!=0)
+                        echo "<br>DD-".numberToCurrency($rsfbcoldd['camt']); ?>
+                       <?php 
+                        if($rsfbcolcq['camt']!=0)
+                        echo "<br>CQ-".numberToCurrency($rsfbcolcq['camt']); ?>
+                       
+                        </td>
+						 
+						<td class="td_data1">
+						<?php 
+						if($rsfbtcolcash['tcamt']!=0)
+						echo "CA-".numberToCurrency($rsfbtcolcash['tcamt']); ?>
+                         
+                        <?php
+                        if($rsfbtcolic['tcamt']!=0)
+                        echo "<br>IC-".numberToCurrency($rsfbtcolic['tcamt']); ?>
+                        
+                        <?php
+                        if($rsfbtcoldd['tcamt']!=0)
+                        echo "<br>DD-".numberToCurrency($rsfbtcoldd['tcamt']); ?>
+                        
+                       <?php
+                        if($rsfbtcolcq['tcamt']!=0)
+                        echo "<br>CQ-".numberToCurrency($rsfbtcolcq['tcamt']); ?>
+                        
+                         
+                        <br>
+						<?php echo "Tot-". numberToCurrency($rsfbtcol['tcamt']) ; ?><br>
+						</td>
+						<td class="td_data1" style="color:red;" >
+						     
+						    <a style="color:red;"  href="../mis/h_m_srcacfeecatwisepend.php?program=<?php echo $rsp['program'];?>&acyear=<?php echo  $acyear;?>&feecategory=<?php echo  $no;?>&batch=<?php echo  $batch;?>&batchle=<?php echo  $batchle;?>&status=<?php echo  $status;?>" target="_blank"  >
+						<?php echo  numberToCurrency(($rsfbsum['tamt']-$rsfbdis['damt']-$rsfbcol['camt']-$rsfbtcol['tcamt'])) ; ?></a>
+					 	    </td>
+						<td class="td_data1">
+						<?php 
+						if($rsfbsum['tamt']!=0)
+						echo  round((( $rsfbcol['camt']+$rsfbtcol['tcamt'])*100)/ ($rsfbsum['tamt']-$rsfbdis['damt']),2); 
+					    else
+					    echo "0";
+					?></td>
+					  <td class="td_data1">
+						 
+						 <a style="color:red;"  href="../mis/h_m_srcacfeecatwiseunrec.php?program=<?php echo $rsp['program'];?>&acyear=<?php echo  $acyear;?>&feecategory=<?php echo  $no;?>&batch=<?php echo  $batch;?>&batchle=<?php echo  $batchle;?>&status=<?php echo  $status;?>" target="_blank"  >
+						<?php echo  numberToCurrency( $uramt) ; ?></a>
+						 </td>
+					 
+				 
+					 
+						
+						
+					 
+					</tr>
+<?php	
+$y1bturamt+=  $uramt;
+$y1btcamt= $y1btcamt + $rsfbcol['camt'];
+$y1bttamt=  $y1bttamt + $rsfbtcol['tcamt'];
+$y1btotalamt += $rsfbsum['tamt'];
+$y1btotaldis += $rsfbdis['damt'];
+$y1bbamt+=($rsfbsum['tamt']-$rsfbdis['damt']-$rsfbcol['camt']-$rsfbtcol['tcamt']);
+
+
+
+$turamt+=  $uramt;
+$tcamt= $tcamt + $rsfbcol['camt'];
+$ttamt=  $ttamt + $rsfbtcol['tcamt'];
+$totalamt += $rsfbsum['tamt'];
+$totaldis += $rsfbdis['damt'];
+$tbamt+=($rsfbsum['tamt']-$rsfbdis['damt']-$rsfbcol['camt']-$rsfbtcol['tcamt']);
+
+$bturamt+=  $uramt;
+$btcamt= $btcamt + $rsfbcol['camt'];
+$bttamt=  $bttamt + $rsfbtcol['tcamt'];
+$btotalamt += $rsfbsum['tamt'];
+$btotaldis += $rsfbdis['damt'];
+$bbamt+=($rsfbsum['tamt']-$rsfbdis['damt']-$rsfbcol['camt']-$rsfbtcol['tcamt']);
+
+$ybturamt+=  $uramt;
+$ybtcamt= $ybtcamt + $rsfbcol['camt'];
+$ybttamt=  $ybttamt + $rsfbtcol['tcamt'];
+$ybtotalamt += $rsfbsum['tamt'];
+$ybtotaldis += $rsfbdis['damt'];
+$ybbamt+=($rsfbsum['tamt']-$rsfbdis['damt']-$rsfbcol['camt']-$rsfbtcol['tcamt']);
+?>
+	
+	
+ 
+<?php
+	}
+   }
+    $j++;
+    
+	}
+    }
+    ?>
+    
+   <tr class="td_data1" style='background-color:lightcyan;font-weight:bold;'>   <td style="color:white;">.</td><td style="color:white;">.</td><td><?php echo $y; ?> Year</td><td>Totals</td> 
+	<?php if($feecategory=="TUITION"){?> 	<td style="color:white;">.</td><td style="color:white;">.</td><td style="color:white;">.</td>
+	<?php }?>
+	
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($y1btotalamt)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($y1btotaldis)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($y1btotalamt)-($y1btotaldis)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($y1btcamt) ; ?></td>
+			<td style="color:white;">.</td>
+            <td   align="right" class="td_data1" >   <?php echo numberToCurrency($y1bttamt) ; ?> </td>
+            
+            
+			<td align="right" class="td_data1" >   <?php echo numberToCurrency($y1bbamt) ; ?> </td> 
+       <td>
+	   <?php  if((($y1btotalamt)-($y1btotaldis))!=0)
+						echo  round((( ($y1bttamt)+$y1btcamt)*100)/ (($y1btotalamt)-($y1btotaldis)),0); 
+					    else
+					    echo "0";
+					    
+	     ?>
+	</td>
+       <td align="right" class="td_data1" >   <?php echo numberToCurrency($y1buramt) ; ?> </td> 
+       
+       
+        </tr>
+	 
+    
+   <?php 
+    $y++;
+	}
+	$i++;
+	?>
+	<tr class="td_data1" style='background-color:lightblue;font-weight:bold;'>  <td style="color:white;">.</td> 	<td colspan=2><?php echo $batch; ?> Batch</td> <td>Totals</td> 
+	<?php if($feecategory=="TUITION"){?> 	<td style="color:white;">.</td><td style="color:white;">.</td> 
+	<?php }?>
+
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($ybtotalamt)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($ybtotaldis)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($ybtotalamt)-($ybtotaldis)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($ybtcamt) ; ?></td>
+			<td style="color:white;">.</td>
+            <td   align="right" class="td_data1" >   <?php echo numberToCurrency($ybttamt) ; ?> </td>
+			<td align="right" class="td_data1" >   <?php echo numberToCurrency($ybbamt) ; ?> </td> 
+       
+       <td>
+	   <?php  if((($ybtotalamt)-($ybtotaldis))!=0)
+						echo  round((( ($ybttamt)+$ybtcamt)*100)/ (($ybtotalamt)-($ybtotaldis)),0); 
+					    else
+					    echo "0";
+					    
+	     ?>
+	</td>
+       <td align="right" class="td_data1" >   <?php echo numberToCurrency($yburamt) ; ?> </td> 
+        </tr>
+	
+	
+	<?php
+	
+	}
+	?>
+	<tr class="td_data1"> <td><?php echo $rsp['program']; ?></td>  <td>Totals</td>	<td style="color:white;">.</td>
+<td style="color:white;">.</td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($btotalamt) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($btotaldis) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($btotalamt)-($btotaldis)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($btcamt) ; ?></td>
+			<td style="color:white;">.</td>
+            <td   align="right" class="td_data1" >   <?php echo numberToCurrency($bttamt) ; ?> </td>
+			<td align="right" class="td_data1" >   <?php echo numberToCurrency($bbamt)  ; ?> </td> 
+       <td>
+	   <?php  if((($btotalamt)-($btotaldis))!=0)
+						echo  round((( ($bttamt)+$btcamt)*100)/ (($btotalamt)-($btotaldis)),0); 
+					    else
+					    echo "0";
+					    
+	     ?>
+	</td>
+       <td align="right" class="td_data1" >   <?php echo numberToCurrency($bturamt)  ; ?> </td> 
+       
+        </tr>
+	
+	
+	<?php
+	 
+}		
+ 
+mysqli_free_result ($feebatchquery );
+			?>		 
+				 
+			 
+	 
+	<!--	<tr class="td_data1"> <td style="color:white;">.</td><td style="color:white;">.</td><td style="color:white;">.</td><td style="color:white;">.</td><td style="color:white;">.</td>
+	<td style="color:white;">.</td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($totalamt) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($totaldis) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency(($totalamt)-($totaldis)) ; ?> </td>
+		<td   align="right" class="td_data1" > <?php echo numberToCurrency($tcamt) ; ?></td>
+            <td   align="right" class="td_data1" >   <?php echo numberToCurrency($ttamt) ; ?> </td>
+			<td align="right" class="td_data1" >   <?php echo numberToCurrency($bamt) ; ?> </td><td style="color:white;">.</td>
+        </tr> -->
+    
+<?php
+  
+$conn->close();  
+?> 
+</table>
+</div>
+ </div></div></div></div> 
+<?php include 'includes/footer.php'; ?></div>
+<?php include 'includes/scripts.php';
+}
+?>
+
+</body>
+ 
